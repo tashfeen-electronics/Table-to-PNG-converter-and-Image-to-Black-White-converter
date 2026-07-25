@@ -6,6 +6,15 @@ This project was built to eliminate the repetitive and time-consuming process of
 
 ---
 
+🚀 Try The Workbench
+
+The Workbench is a browser-based utility designed to simplify the creation of PCB silkscreen graphics. It allows you to generate table-based silkscreen images, convert images to black-and-white PCB-ready graphics, and export everything as PNG files in just a few clicks.
+
+🔗 Open The Workbench:
+The Workbench
+
+https://github.com/tashfeen-electronics/Table-to-PNG-converter-and-Image-to-Black-White-converter/blob/main/THE%20WORKBENCH.
+
 # Features
 
 ## 📋 Table to PNG Generator
