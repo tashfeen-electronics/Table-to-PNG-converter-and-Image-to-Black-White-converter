@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Workbench</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2420;
+    --paper:#eee9df;
+    --paper-line:#c9c0ab;
+    --ledger:#33473d;
+    --ledger-deep:#233029;
+    --ledger-accent:#c98a4b;
+    --dark:#16181d;
+    --dark-deep:#0d0f12;
+    --safelight:#c1442f;
+    --safelight-soft:#e2694c;
+    --film:#e7e2d6;
+    --ok:#4c7a5e;
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    font-family:var(--font-sans);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .masthead{
+    padding:56px 40px 34px;
+    text-align:center;
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .masthead .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--safelight-soft);
+    margin-bottom:14px;
+  }
+  .masthead h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(38px,6vw,64px);
+    margin:0;
+    line-height:1.02;
+    letter-spacing:-0.01em;
+  }
+  .masthead p{
+    font-family:var(--font-mono);
+    font-size:13px;
+    color:#9b9488;
+    margin-top:16px;
+    max-width:480px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  .ruler{
+    height:26px;
+    background:repeating-linear-gradient(
+      90deg,
+      var(--ink) 0px, var(--ink) 1px,
+      transparent 1px, transparent 40px
+    );
+    background-color:var(--ink);
+    position:relative;
+    border-bottom:1px solid #000;
+  }
+  .ruler::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 18px,
+      #55534b 18px, #55534b 19px,
+      transparent 19px, transparent 20px
+    );
+    opacity:.5;
+  }
+
+  .stations{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    min-height:100vh;
+  }
+  @media (max-width:920px){
+    .stations{grid-template-columns:1fr;}
+  }
+
+  /* ---------- STATION 1: LEDGER ---------- */
+  .station-ledger{
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 34px,
+      var(--paper);
+    padding:44px 40px 64px;
+    border-right:2px solid var(--ink);
+  }
+  .station-tag{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--ledger);
+    margin-bottom:10px;
+  }
+  .station-tag .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--ledger);
+  }
+  .station-title{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:32px;
+    margin:0 0 6px;
+    color:var(--ledger-deep);
+  }
+  .station-sub{
+    font-size:14px;
+    color:#5c5648;
+    margin-bottom:28px;
+    max-width:46ch;
+  }
+
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:22px;
+    align-items:center;
+  }
+  .btn{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    letter-spacing:.03em;
+    border:1.5px solid var(--ledger-deep);
+    background:transparent;
+    color:var(--ledger-deep);
+    padding:9px 16px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, transform .1s ease;
+  }
+  .btn:hover{background:var(--ledger-deep); color:var(--paper);}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.55; cursor:default;}
+  .btn.primary{
+    background:var(--ledger-deep);
+    color:var(--paper);
+  }
+  .btn.primary:hover{background:var(--ink);}
+  .btn.accent{
+    border-color:var(--ledger-accent);
+    color:#7a4e21;
+  }
+  .btn.accent:hover{background:var(--ledger-accent); color:#241505; border-color:var(--ledger-accent);}
+
+  .swatches{
+    display:flex;
+    gap:6px;
+    margin-left:auto;
+  }
+  .swatch{
+    width:22px;height:22px;
+    border-radius:50%;
+    border:2px solid var(--paper);
+    outline:1px solid #b3aa93;
+    cursor:pointer;
+  }
+  .swatch.active{outline:2px solid var(--ink);}
+
+  .table-frame{
+    background:#fffdf8;
+    border:1.5px solid var(--ink);
+    box-shadow:6px 6px 0 rgba(28,36,32,.14);
+    padding:26px;
+    overflow-x:auto;
+  }
+  table#ledgerTable{
+    border-collapse:collapse;
+    width:100%;
+    font-family:var(--font-sans);
+    font-size:14.5px;
+  }
+  table#ledgerTable th, table#ledgerTable td{
+    border:1px solid #cfc6ae;
+    padding:10px 14px;
+    min-width:90px;
+    text-align:left;
+    position:relative;
+  }
+  table#ledgerTable th{
+    background:var(--ledger-deep);
+    color:var(--paper);
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    font-weight:500;
+  }
+  table#ledgerTable.striped tr:nth-child(even) td:not(.ctrl-col){
+    background:#f3efe2;
+  }
+  table#ledgerTable td[contenteditable="true"]:focus,
+  table#ledgerTable th[contenteditable="true"]:focus{
+    outline:2px solid var(--ledger-accent);
+    outline-offset:-2px;
+    background:#fff8ea !important;
+  }
+  table#ledgerTable .ctrl-col{
+    border:none !important;
+    background:transparent !important;
+    padding:0 !important;
+    width:12px;
+    min-width:12px;
+    position:relative;
+  }
+  .row-x{
+    position:absolute;
+    right:-11px; top:50%;
+    transform:translateY(-50%);
+    width:18px;height:18px;
+    border-radius:50%;
+    background:var(--safelight);
+    color:#fff;
+    font-size:11px;
+    line-height:18px;
+    text-align:center;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .12s ease;
+    font-family:var(--font-sans);
+    user-select:none;
+  }
+  tr:hover .row-x{opacity:1;}
+
+  .export-row{
+    margin-top:22px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .hint{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:#847c69;
+  }
+
+  /* ---------- STATION 2: DARKROOM ---------- */
+  .station-dark{
+    background:
+      radial-gradient(circle at 85% 8%, rgba(193,68,47,.14), transparent 45%),
+      var(--dark);
+    padding:44px 40px 64px;
+    color:var(--film);
+    position:relative;
+  }
+  .station-dark .station-tag{color:var(--safelight-soft);}
+  .station-dark .station-tag .dot{background:var(--safelight-soft); box-shadow:0 0 8px var(--safelight-soft);}
+  .station-dark .station-title{color:var(--film);}
+  .station-dark .station-sub{color:#9a978d;}
+
+  .drop-zone{
+    border:1.5px dashed #55534b;
+    border-radius:4px;
+    background:var(--dark-deep);
+    min-height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:10px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    text-align:center;
+    padding:20px;
+  }
+  .drop-zone:hover, .drop-zone.drag{
+    border-color:var(--safelight-soft);
+    background:#191b20;
+  }
+  .drop-zone svg{opacity:.7;}
+  .drop-zone .dz-label{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:#b7b2a3;
+  }
+  .drop-zone .dz-sub{
+    font-size:11.5px;
+    color:#6f6b60;
+  }
+  #fileInput{display:none;}
+
+  .contact-sheet{
+    margin-top:22px;
+    background:var(--dark-deep);
+    border:1.5px solid #34342f;
+    padding:18px;
+    display:none;
+  }
+  .contact-sheet.show{display:block;}
+  .sheet-row{
+    display:flex;
+    gap:18px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .frame{
+    flex:1;
+    min-width:220px;
+  }
+  .frame-label{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#7d7a70;
+    margin-bottom:8px;
+  }
+  .frame canvas{
+    width:100%;
+    height:auto;
+    display:block;
+    border:1px solid #3a3a34;
+    background:repeating-conic-gradient(#26262180 0% 25%, #1c1c1980 0% 50%) 50%/16px 16px;
+  }
+
+  .dial-row{
+    display:flex;
+    gap:26px;
+    margin-top:20px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+  }
+  .dial{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    min-width:150px;
+  }
+  .dial label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:#a29d90;
+    display:flex;
+    justify-content:space-between;
+  }
+  .dial label span.val{color:var(--safelight-soft);}
+  input[type="range"]{
+    -webkit-appearance:none;
+    width:100%;
+    height:3px;
+    background:#3a3a34;
+    border-radius:2px;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:14px;height:14px;
+    border-radius:50%;
+    background:var(--safelight-soft);
+    cursor:pointer;
+    border:2px solid var(--dark-deep);
+  }
+  .mode-toggle{
+    display:flex;
+    gap:8px;
+  }
+  .mode-btn{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    padding:8px 13px;
+    border:1.5px solid #4a4941;
+    background:transparent;
+    color:#b7b2a3;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .mode-btn.active{
+    background:var(--safelight);
+    border-color:var(--safelight);
+    color:#fff;
+  }
+
+  .export-row-dark{
+    margin-top:24px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .btn.dark{
+    border-color:#55534b;
+    color:var(--film);
+  }
+  .btn.dark:hover{background:#2a2a25;}
+  .btn.dark.primary{
+    background:var(--safelight);
+    border-color:var(--safelight);
+    color:#fff;
+  }
+  .btn.dark.primary:hover{background:var(--safelight-soft);}
+
+  footer{
+    background:var(--ink);
+    color:#736c5f;
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:.1em;
+    padding:20px;
+    text-transform:uppercase;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="eyebrow">Two Stations · One Bench</div>
+  <h1>The Workbench</h1>
+  <p>LEFT — build a table, print it to PNG. RIGHT — drop a photo, pull it into black and white.</p>
+</div>
+<div class="ruler"></div>
+
+<div class="stations">
+
+  <!-- STATION 1 : LEDGER -->
+  <section class="station-ledger">
+    <div class="station-tag"><span class="dot"></span>Station 01</div>
+    <h2 class="station-title">The Ledger</h2>
+    <p class="station-sub">Type into any cell. Add rows and columns as the sheet grows. When it's ready, print it straight to an image.</p>
+
+    <div class="toolbar">
+      <button class="btn primary" onclick="addRow()">+ Row</button>
+      <button class="btn primary" onclick="addCol()">+ Column</button>
+      <button class="btn" onclick="removeCol()">− Column</button>
+      <button class="btn accent" onclick="toggleStripe()">Stripe rows</button>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="table-frame" id="tableFrame">
+      <table id="ledgerTable">
+        <thead>
+          <tr id="headRow">
+            <th contenteditable="true">Column A</th>
+            <th contenteditable="true">Column B</th>
+            <th contenteditable="true">Column C</th>
+            <th class="ctrl-col" aria-hidden="true"></th>
+          </tr>
+        </thead>
+        <tbody id="bodyRows">
+        </tbody>
+      </table>
+    </div>
+
+    <div class="export-row">
+      <button class="btn primary" onclick="exportTable(this)">Print to PNG ↓</button>
+      <span class="hint" id="ledgerHint">3 columns · click a cell to edit</span>
+    </div>
+  </section>
+
+  <!-- STATION 2 : DARKROOM -->
+  <section class="station-dark">
+    <div class="station-tag"><span class="dot"></span>Station 02</div>
+    <h2 class="station-title">The Darkroom</h2>
+    <p class="station-sub">Drop a photo under the safelight. Adjust exposure and contrast, choose grayscale or pure two-tone, then pull the print.</p>
+
+    <div class="drop-zone" id="dropZone">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b7b2a3" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="1.5"/><circle cx="12" cy="12" r="3.5"/><path d="M8 5l1.4-2h5.2L16 5"/></svg>
+      <div class="dz-label">Click or drop an image here</div>
+      <div class="dz-sub">JPG, PNG, WebP</div>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="contact-sheet" id="contactSheet">
+      <div class="sheet-row">
+        <div class="frame">
+          <div class="frame-label">Original</div>
+          <canvas id="srcCanvas"></canvas>
+        </div>
+        <div class="frame">
+          <div class="frame-label">Developed</div>
+          <canvas id="outCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="dial-row">
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="gray" onclick="setMode('gray')">Grayscale</button>
+          <button class="mode-btn" data-mode="bw" onclick="setMode('bw')">Pure B/W</button>
+        </div>
+        <div class="dial">
+          <label>Contrast <span class="val" id="contrastVal">100</span></label>
+          <input type="range" id="contrastSlider" min="50" max="200" value="100">
+        </div>
+        <div class="dial" id="thresholdDial" style="display:none;">
+          <label>Threshold <span class="val" id="threshVal">128</span></label>
+          <input type="range" id="threshSlider" min="0" max="255" value="128">
+        </div>
+      </div>
+
+      <div class="export-row-dark">
+        <button class="btn dark primary" onclick="downloadBW(this)">Save print ↓</button>
+        <span class="hint" id="darkHint">—</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>Built on the bench — everything happens in your browser</footer>
+
+<script>
+/* ============ STATION 1 : LEDGER TABLE ============ */
+const bodyRows = document.getElementById('bodyRows');
+const headRow = document.getElementById('headRow');
+const ctrlHeadCell = headRow.querySelector('.ctrl-col');
+const table = document.getElementById('ledgerTable');
+const ledgerHint = document.getElementById('ledgerHint');
+const palette = ['#33473d','#2f3d55','#5a3a2b','#4a2f4d','#1c2420'];
+
+function dataColCount(){ return headRow.children.length - 1; }
+
+function makeCell(tag){
+  const el = document.createElement(tag);
+  el.contentEditable = 'true';
+  return el;
+}
+
+function makeCtrlCell(tagIsHeader){
+  const el = document.createElement(tagIsHeader ? 'th' : 'td');
+  el.className = 'ctrl-col';
+  el.setAttribute('aria-hidden','true');
+  return el;
+}
+
+function addRow(){
+  const tr = document.createElement('tr');
+  const n = dataColCount();
+  for(let i=0;i<n;i++){
+    tr.appendChild(makeCell('td'));
+  }
+  const ctrl = makeCtrlCell(false);
+  const del = document.createElement('span');
+  del.className = 'row-x';
+  del.textContent = '\u00d7';
+  del.title = 'Delete row';
+  del.onclick = ()=>{ tr.remove(); updateHint(); };
+  ctrl.appendChild(del);
+  tr.appendChild(ctrl);
+  bodyRows.appendChild(tr);
+  updateHint();
+}
+
+function addCol(){
+  const label = 'Column ' + String.fromCharCode(65 + dataColCount());
+  const th = makeCell('th');
+  th.textContent = label;
+  headRow.insertBefore(th, ctrlHeadCell);
+  Array.from(bodyRows.children).forEach(tr=>{
+    const ctrl = tr.querySelector('.ctrl-col');
+    tr.insertBefore(makeCell('td'), ctrl);
+  });
+  updateHint();
+}
+
+function removeCol(){
+  if(dataColCount() <= 1) return;
+  headRow.removeChild(ctrlHeadCell.previousElementSibling);
+  Array.from(bodyRows.children).forEach(tr=>{
+    const ctrl = tr.querySelector('.ctrl-col');
+    const lastData = ctrl.previousElementSibling;
+    if(lastData) tr.removeChild(lastData);
+  });
+  updateHint();
+}
+
+function updateHint(){
+  ledgerHint.textContent = dataColCount() + ' columns \u00b7 ' + bodyRows.children.length + ' rows';
+}
+
+function toggleStripe(){
+  table.classList.toggle('striped');
+}
+
+function buildSwatches(){
+  const wrap = document.getElementById('swatches');
+  palette.forEach((c,i)=>{
+    const s = document.createElement('div');
+    s.className = 'swatch' + (i===0?' active':'');
+    s.style.background = c;
+    s.onclick = ()=>{
+      document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));
+      s.classList.add('active');
+      document.documentElement.style.setProperty('--ledger-deep', c);
+    };
+    wrap.appendChild(s);
+  });
+}
+buildSwatches();
+addRow(); addRow(); addRow();
+
+function exportTable(btn){
+  const frame = document.getElementById('tableFrame');
+  const original = btn.textContent;
+
+  if(typeof html2canvas === 'undefined'){
+    ledgerHint.textContent = 'Image engine did not load \u2014 check your connection and reload the page.';
+    return;
+  }
+
+  const ctrlCells = document.querySelectorAll('.ctrl-col');
+  ctrlCells.forEach(c=>{ c.style.display='none'; });
+  btn.textContent = 'Rendering\u2026';
+  btn.disabled = true;
+
+  html2canvas(frame, {backgroundColor:'#fffdf8', scale:2}).then(function(canvas){
+    ctrlCells.forEach(c=>{ c.style.display=''; });
+    canvas.toBlob(function(blob){
+      btn.textContent = original;
+      btn.disabled = false;
+      if(!blob){
+        ledgerHint.textContent = 'Could not create the image \u2014 try again.';
+        return;
+      }
+      const link = document.createElement('a');
+      link.download = 'table.png';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      ledgerHint.textContent = dataColCount() + ' columns \u00b7 ' + bodyRows.children.length + ' rows \u00b7 saved';
+    });
+  }).catch(function(err){
+    ctrlCells.forEach(c=>{ c.style.display=''; });
+    btn.textContent = original;
+    btn.disabled = false;
+    ledgerHint.textContent = 'Export failed \u2014 try again.';
+    console.error(err);
+  });
+}
+
+/* ============ STATION 2 : B&W IMAGE ============ */
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const contactSheet = document.getElementById('contactSheet');
+const srcCanvas = document.getElementById('srcCanvas');
+const outCanvas = document.getElementById('outCanvas');
+const darkHint = document.getElementById('darkHint');
+const contrastSlider = document.getElementById('contrastSlider');
+const contrastVal = document.getElementById('contrastVal');
+const threshSlider = document.getElementById('threshSlider');
+const threshVal = document.getElementById('threshVal');
+const thresholdDial = document.getElementById('thresholdDial');
+let mode = 'gray';
+let loadedImg = null;
+
+dropZone.addEventListener('click', ()=>fileInput.click());
+dropZone.addEventListener('dragover', e=>{e.preventDefault(); dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', ()=>{
+  if(fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file){
+  if(!file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      loadedImg = img;
+      const maxW = 480;
+      const scale = Math.min(1, maxW/img.width);
+      const w = Math.round(img.width*scale);
+      const h = Math.round(img.height*scale);
+      [srcCanvas, outCanvas].forEach(c=>{ c.width=w; c.height=h; });
+      srcCanvas.getContext('2d').drawImage(img,0,0,w,h);
+      contactSheet.classList.add('show');
+      darkHint.textContent = w + ' \u00d7 ' + h + ' px';
+      render();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
+  thresholdDial.style.display = m==='bw' ? 'flex' : 'none';
+  render();
+}
+
+function render(){
+  if(!loadedImg) return;
+  const w = outCanvas.width, h = outCanvas.height;
+  const ctx = outCanvas.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0, w, h);
+  const imgData = ctx.getImageData(0,0,w,h);
+  const d = imgData.data;
+  const contrast = parseFloat(contrastSlider.value)/100;
+  const thresh = parseInt(threshSlider.value);
+  for(let i=0;i<d.length;i+=4){
+    let gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    gray = (gray - 128)*contrast + 128;
+    gray = Math.max(0, Math.min(255, gray));
+    if(mode==='bw'){
+      const v = gray >= thresh ? 255 : 0;
+      d[i]=v; d[i+1]=v; d[i+2]=v;
+    } else {
+      d[i]=gray; d[i+1]=gray; d[i+2]=gray;
+    }
+  }
+  ctx.putImageData(imgData,0,0);
+}
+
+contrastSlider.addEventListener('input', ()=>{ contrastVal.textContent = contrastSlider.value; render(); });
+threshSlider.addEventListener('input', ()=>{ threshVal.textContent = threshSlider.value; render(); });
+
+function downloadBW(btn){
+  if(!loadedImg){
+    darkHint.textContent = 'Load a photo first.';
+    return;
+  }
+  const original = btn.textContent;
+  try{
+    const full = document.createElement('canvas');
+    full.width = loadedImg.width;
+    full.height = loadedImg.height;
+    const ctx = full.getContext('2d');
+    ctx.drawImage(loadedImg,0,0);
+    const imgData = ctx.getImageData(0,0,full.width,full.height);
+    const d = imgData.data;
+    const contrast = parseFloat(contrastSlider.value)/100;
+    const thresh = parseInt(threshSlider.value);
+    for(let i=0;i<d.length;i+=4){
+      let gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      gray = (gray - 128)*contrast + 128;
+      gray = Math.max(0, Math.min(255, gray));
+      if(mode==='bw'){
+        const v = gray >= thresh ? 255 : 0;
+        d[i]=v; d[i+1]=v; d[i+2]=v;
+      } else {
+        d[i]=gray; d[i+1]=gray; d[i+2]=gray;
+      }
+    }
+    ctx.putImageData(imgData,0,0);
+    full.toBlob(function(blob){
+      if(!blob){
+        darkHint.textContent = 'Could not create the image \u2014 try again.';
+        return;
+      }
+      const link = document.createElement('a');
+      link.download = 'photo-bw.png';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      darkHint.textContent = full.width + ' \u00d7 ' + full.height + ' px \u00b7 saved';
+    });
+  } catch(err){
+    darkHint.textContent = 'Export failed \u2014 try again.';
+    console.error(err);
+  }
+}
+</script>
+</body>
+</html>
